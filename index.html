@@ -99,8 +99,8 @@
                 <div id="rating-fill" class="rating-bar-fill" style="width: 0%"></div>
             </div>
             <div class="flex justify-between mt-1">
-                <span id="note-count" class="text-[9px] text-gray-500">0 note(s)</span>
-                <span class="text-[9px] text-gray-400 italic text-right">Tapez !note 1-10 en live</span>
+                <span id="note-count" class="text-[9px] text-gray-400">0 note(s)</span>
+                <span class="text-[9px] text-gray-400 italic text-right">Tapez !note 0-10 en live</span>
             </div>
         </div>
 
@@ -148,9 +148,13 @@
             document.getElementById('req').innerText = "@" + (data.requester || "...");
 
             // 2. Mise à jour Barre de Note
+            // À l'intérieur de async function update()
             const avg = data.note_avg || 0;
-            document.getElementById('avg-score').innerText = avg.toFixed(1);
-            document.getElementById('note-count').innerText = `${data.note_count || 0} note(s)`;
+            const count = data.note_count || 0;
+            
+            // .toFixed(1) force l'affichage d'une décimale (ex: 8.0 ou 8.5)
+            document.getElementById('avg-score').textContent = avg.toFixed(1);
+            document.getElementById('note-count').textContent = `${count} note(s)`;
             document.getElementById('rating-fill').style.width = `${avg * 10}%`;
 
             // 3. Mise à jour du Classement (Top 3)
