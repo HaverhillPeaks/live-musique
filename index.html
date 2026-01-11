@@ -18,7 +18,7 @@
             align-items: center;
         }
 
-        /* Animation de fond identique au local */
+        /* Animation de fond identique à ton interface locale */
         .bg-animation {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -47,6 +47,7 @@
             gap: 10px;
             padding: 20px;
             background: linear-gradient(to bottom, rgba(18,18,18,0.8), transparent);
+            min-height: 80px;
         }
         .leader-card {
             min-width: 120px;
@@ -71,6 +72,8 @@
         }
 
         #queue-list { max-height: 500px; overflow-y: auto; scrollbar-width: thin; }
+        #queue-list::-webkit-scrollbar { width: 4px; }
+        #queue-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -80,10 +83,9 @@
         <div class="blob blob-3"></div>
     </div>
 
-    <div id="leaderboard">
-        </div>
+    <div id="leaderboard"></div>
 
-    <div class="w-[32rem] max-w-[95%] space-y-4 z-10 p-4">
+    <div class="w-[32rem] max-w-[95%] space-y-4 z-10 p-4 mb-10">
         
         <div id="note-container" class="px-2">
             <div class="flex justify-between items-end mb-1">
@@ -98,7 +100,7 @@
             </div>
             <div class="flex justify-between mt-1">
                 <span id="note-count" class="text-[9px] text-gray-500">0 note(s)</span>
-                <span class="text-[9px] text-gray-400 italic text-right">Tapez !note 1-10</span>
+                <span class="text-[9px] text-gray-400 italic text-right">Tapez !note 1-10 en live</span>
             </div>
         </div>
 
@@ -118,7 +120,7 @@
         <div class="card">
             <h3 class="text-pink-500 text-[10px] font-black uppercase tracking-[3px] mb-4 text-center">Prochainement</h3>
             <div id="queue-list" class="space-y-3">
-                <div class="text-gray-600 text-center text-sm italic">Initialisation...</div>
+                <div class="text-gray-600 text-center text-sm italic">En attente de données...</div>
             </div>
         </div>
     </div>
@@ -127,59 +129,64 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
+        // CONFIGURATION FIREBASE
         const firebaseConfig = { 
             databaseURL: "https://spotifylive-5f16c-default-rtdb.europe-west1.firebasedatabase.app/" 
         };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // Ecoute des données "live" envoyées par app.py
         onValue(ref(db, 'live'), (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
 
-            // Musique actuelle
-            document.getElementById('title').innerText = data.title || "Pause";
-            document.getElementById('artist').innerText = data.artist || "";
-            document.getElementById('art').src = data.album_art || "";
+            // 1. Mise à jour Musique Actuelle
+            document.getElementById('title').innerText = data.title || "En attente";
+            document.getElementById('artist').innerText = data.artist || "Aucun artiste";
+            document.getElementById('art').src = data.album_art || "https://via.placeholder.com/400/181818/FFFFFF?text=Spotify";
             document.getElementById('req').innerText = "@" + (data.requester || "...");
 
-            // Notes
+            // 2. Mise à jour Barre de Note
             const avg = data.note_avg || 0;
             document.getElementById('avg-score').innerText = avg.toFixed(1);
             document.getElementById('note-count').innerText = `${data.note_count || 0} note(s)`;
             document.getElementById('rating-fill').style.width = `${avg * 10}%`;
 
-            // Classement (Leaderboard)
+            // 3. Mise à jour du Classement (Top 3)
+            const lbContainer = document.getElementById('leaderboard');
             if (data.leaderboard && data.leaderboard.length > 0) {
                 const icons = ['🥇', '🥈', '🥉'];
-                document.getElementById('leaderboard').innerHTML = data.leaderboard.slice(0, 3).map((u, i) => `
+                lbContainer.innerHTML = data.leaderboard.map((u, i) => `
                     <div class="leader-card">
-                        <span class="text-xs">${icons[i]}</span>
+                        <span class="text-xs">${icons[i] || '⭐'}</span>
                         <span class="truncate text-[10px] font-bold text-white" style="max-width:70px">${u.name}</span>
                         <span class="text-[10px] text-pink-500 font-black">${u.likes}❤️</span>
                     </div>
                 `).join('');
             } else {
-                document.getElementById('leaderboard').innerHTML = "";
+                lbContainer.innerHTML = "";
             }
 
-            // File d'attente
-            const queueHtml = (data.queue && data.queue.length > 0) ? data.queue.map((t, i) => `
-            <div class="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5 shadow-sm">
-                <div class="text-xs text-gray-500 font-mono w-4 text-center flex-shrink-0">${i + 1}</div>
-                
-                <img src="${t.album_art || 'https://via.placeholder.com/40/181818/FFFFFF?text=?'}" 
-                     class="w-10 h-10 rounded-xl shadow-lg flex-shrink-0 object-cover" 
-                     alt="Cover">
-                
-                <div class="flex flex-col justify-center min-w-0 flex-1"> 
-                    <b class="text-sm truncate text-white leading-tight">${t.artist} - ${t.title}</b>
-                    <span class="text-gray-500 text-[10px] truncate">@${t.requester}</span>
-                </div>
-            </div>
-        `).join('') : "<p class='text-gray-600 text-center italic text-sm py-4'>La file est vide</p>";
-        
-        document.getElementById('queue-list').innerHTML = queueHtml;
+            // 4. Mise à jour de la File d'attente (Avec images)
+            const queueContainer = document.getElementById('queue-list');
+            if (data.queue && data.queue.length > 0) {
+                queueContainer.innerHTML = data.queue.map((t, i) => `
+                    <div class="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5 shadow-sm">
+                        <div class="text-xs text-gray-500 font-mono w-4 text-center flex-shrink-0">${i + 1}</div>
+                        
+                        <img src="${t.album_art || 'https://via.placeholder.com/40/181818/FFFFFF?text=?'}" 
+                             class="w-10 h-10 rounded-xl shadow-lg flex-shrink-0 object-cover" alt="cover">
+                        
+                        <div class="flex flex-col justify-center min-w-0 flex-1"> 
+                            <b class="text-sm truncate text-white leading-tight">${t.artist} - ${t.title}</b>
+                            <span class="text-gray-500 text-[10px] truncate">@${t.requester}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                queueContainer.innerHTML = "<p class='text-gray-600 text-center italic text-sm py-4'>La file est vide</p>";
+            }
         });
     </script>
 </body>
