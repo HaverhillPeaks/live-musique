@@ -66,7 +66,7 @@
         .rating-bar-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 4px; }
         .rating-bar-fill { 
             height: 100%; 
-            background: linear-gradient(90deg, #fe2c55, #ff6b9d); 
+            background: linear-gradient(90deg, #fe2c55, #4facfe);
             border-radius: 3px; 
             transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
         }
@@ -155,15 +155,23 @@
 
             // 3. Mise à jour du Classement (Top 3)
             const lbContainer = document.getElementById('leaderboard');
+            
             if (data.leaderboard && data.leaderboard.length > 0) {
                 const icons = ['🥇', '🥈', '🥉'];
-                lbContainer.innerHTML = data.leaderboard.map((u, i) => `
-                    <div class="leader-card">
-                        <span class="text-xs">${icons[i] || '⭐'}</span>
-                        <span class="truncate text-[10px] font-bold text-white" style="max-width:70px">${u.name}</span>
-                        <span class="text-[10px] text-pink-500 font-black">${u.likes}❤️</span>
-                    </div>
-                `).join('');
+                const scoreColors = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
+
+                lbContainer.innerHTML = data.leaderboard.slice(0, 3) // On ne prend que les 3 premiers
+                    .map((user, index) => `
+                        <div class="leader-card">
+                            <span class="text-xs">${icons[index]}</span>
+                            <span class="truncate text-[10px] font-bold text-gray-200" style="max-width: 60px;">
+                                ${user.name}
+                            </span>
+                            <span class="text-[10px] ${scoreColors[index]} font-black">
+                                ${user.likes}❤️
+                            </span>
+                        </div>
+                    `).join('');
             } else {
                 lbContainer.innerHTML = "";
             }
