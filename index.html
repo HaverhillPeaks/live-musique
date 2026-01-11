@@ -2,26 +2,122 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Live Musique - File d'attente</title>
+    <title>Live Musique - Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-[#121212] text-white p-6 font-sans">
-    <div class="max-w-md mx-auto space-y-6">
-        <h1 class="text-pink-500 font-black text-center uppercase tracking-tighter">Live en cours</h1>
+    <style>
+        :root { --green: #1DB954; --dark: #121212; --light-dark: #181818; }
+        body { 
+            background: var(--dark); 
+            color: white; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            margin: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Animation de fond identique à ton local */
+        .bg-animation {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; filter: blur(100px); opacity: 0.6;
+            background: #0a0a0a; overflow: hidden;
+        }
+        .blob { position: absolute; width: 600px; height: 600px; border-radius: 50%; mix-blend-mode: screen; }
+        .blob-1 { background: #ff2d55; top: -10%; left: -10%; animation: move-circle 25s infinite linear; }
+        .blob-2 { background: #5856d6; bottom: -10%; right: -10%; animation: move-circle 30s infinite linear reverse; }
+        .blob-3 { background: #007aff; top: 30%; left: 30%; animation: move-circle 35s infinite linear; }
+
+        @keyframes move-circle {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+            33% { transform: translate(200px, 150px) scale(1.2) rotate(120deg); }
+            66% { transform: translate(-100px, 250px) scale(0.9) rotate(240deg); }
+            100% { transform: translate(0, 0) scale(1) rotate(360deg); }
+        }
+
+        .card { background: var(--light-dark); border-radius: 24px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); }
         
-        <div class="bg-[#181818] p-4 rounded-3xl border border-white/10 shadow-xl">
-            <img id="art" class="w-full aspect-square rounded-2xl mb-4 object-cover" src="">
-            <div id="title" class="text-xl font-bold truncate">Chargement...</div>
-            <div id="artist" class="text-gray-400 mb-2">Artiste</div>
-            <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg">
-                <span class="text-xs text-gray-400">Demandé par : <b id="req" class="text-white">...</b></span>
-                <span id="note" class="text-pink-500 font-bold">⭐ 0/10</span>
+        /* Leaderboard horizontal */
+        #leaderboard {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            background: linear-gradient(to bottom, rgba(18,18,18,0.8), transparent);
+        }
+        .leader-card {
+            min-width: 120px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Barre de note */
+        .rating-bar-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 4px; }
+        .rating-bar-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #fe2c55, #ff6b9d); 
+            border-radius: 3px; 
+            transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+
+        #queue-list { max-height: 500px; overflow-y: auto; scrollbar-width: thin; }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div id="leaderboard"></div>
+
+    <div class="w-[32rem] max-w-[95%] space-y-4 z-10 p-4">
+        
+        <div id="note-container" class="px-2">
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Note du Public</span>
+                <div class="text-right">
+                    <span id="avg-score" class="text-2xl font-black text-white">0.0</span>
+                    <span class="text-xs text-pink-500 font-bold">/10</span>
+                </div>
+            </div>
+            <div class="rating-bar-bg">
+                <div id="rating-fill" class="rating-bar-fill" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between mt-1">
+                <span id="note-count" class="text-[9px] text-gray-500">0 note(s)</span>
+                <span class="text-[9px] text-gray-400 italic">Tapez !note 1-10 en live</span>
             </div>
         </div>
 
-        <div class="bg-[#181818] p-4 rounded-3xl border border-white/10">
-            <h3 class="text-xs font-bold text-gray-500 uppercase mb-4">À suivre...</h3>
-            <div id="queue-list" class="space-y-3"></div>
+        <div class="card shadow-2xl">
+            <div class="flex gap-4 items-center bg-white/5 p-4 rounded-2xl border border-white/5">
+                <img id="art" class="w-24 h-24 rounded-xl object-cover shadow-lg" src="https://via.placeholder.com/400/181818/FFFFFF?text=Spotify">
+                <div class="flex-1 min-w-0">
+                    <h1 id="title" class="text-lg font-bold truncate text-white leading-tight">Chargement...</h1>
+                    <p id="artist" class="text-gray-400 text-sm font-medium truncate mb-2">Artiste</p>
+                    <div class="inline-flex items-center gap-2 bg-black/30 px-2 py-1 rounded-lg">
+                        <p class="text-[10px] text-gray-300">Demandé par <span id="req" class="font-bold text-white">...</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="text-pink-500 text-[10px] font-black uppercase tracking-[3px] mb-4 text-center">Prochainement</h3>
+            <div id="queue-list" class="space-y-3">
+                <div class="text-gray-600 text-center text-sm italic">Initialisation...</div>
+            </div>
         </div>
     </div>
 
@@ -29,30 +125,53 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
-        const firebaseConfig = { databaseURL: "https://spotifylive-5f16c-default-rtdb.europe-west1.firebasedatabase.app/" };
+        // Ta configuration Firebase
+        const firebaseConfig = { 
+            databaseURL: "https://spotifylive-5f16c-default-rtdb.europe-west1.firebasedatabase.app/" 
+        };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Écoute en temps réel les changements envoyés par ton app.py
         onValue(ref(db, 'live'), (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
 
+            // Mise à jour musique actuelle
             document.getElementById('title').innerText = data.title;
             document.getElementById('artist').innerText = data.artist;
             document.getElementById('art').src = data.album_art;
             document.getElementById('req').innerText = "@" + data.requester;
-            document.getElementById('note').innerText = "⭐ " + (data.note_avg || 0).toFixed(1) + "/10";
 
-            const queueHtml = data.queue.map(t => `
-                <div class="flex items-center gap-3 bg-white/5 p-2 rounded-xl">
-                    <div class="min-w-0 flex-1">
-                        <div class="text-sm font-bold truncate">${t.artist} - ${t.title}</div>
-                        <div class="text-[10px] text-gray-500">@${t.requester}</div>
+            // Mise à jour Note
+            const avg = data.note_avg || 0;
+            document.getElementById('avg-score').innerText = avg.toFixed(1);
+            document.getElementById('note-count').innerText = `${data.note_count || 0} note(s)`;
+            document.getElementById('rating-fill').style.width = `${avg * 10}%`;
+
+            // Mise à jour Leaderboard
+            if (data.leaderboard) {
+                const icons = ['🥇', '🥈', '🥉'];
+                document.getElementById('leaderboard').innerHTML = data.leaderboard.slice(0, 3).map((u, i) => `
+                    <div class="leader-card">
+                        <span class="text-xs">${icons[i]}</span>
+                        <span class="truncate text-[10px] font-bold text-white" style="max-width:70px">${u.name}</span>
+                        <span class="text-[10px] text-pink-500 font-black">${u.likes}❤️</span>
+                    </div>
+                `).join('');
+            }
+
+            // Mise à jour File d'attente (Style identique à ton local)
+            const queueHtml = data.queue ? data.queue.map((t, i) => `
+                <div class="flex items-center gap-3 bg-white/5 p-3 rounded-2xl">
+                    <div class="text-xs text-gray-500 font-mono w-6 text-center">${i + 1}</div>
+                    <div class="flex flex-col justify-center min-w-0 flex-1"> 
+                        <b class="text-sm truncate text-white leading-tight">${t.artist} - ${t.title}</b>
+                        <span class="text-gray-500 text-[10px] truncate">@${t.requester}</span>
                     </div>
                 </div>
-            `).join('');
-            document.getElementById('queue-list').innerHTML = queueHtml || "<p class='text-gray-600 text-center italic'>File vide</p>";
+            `).join('') : "<p class='text-gray-600 text-center italic text-sm'>La file est vide</p>";
+            
+            document.getElementById('queue-list').innerHTML = queueHtml;
         });
     </script>
 </body>
